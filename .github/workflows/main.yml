@@ -53,10 +53,32 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
+  publish:
+    name: Publicar imagen (Docker Hub)
+    runs-on: ubuntu-latest
+    needs: quality-gate
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login a Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build y push de la imagen
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/portfolio-devops:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/portfolio-devops:${{ github.sha }}
+
   deploy:
     name: Deploy a GitHub Pages
     runs-on: ubuntu-latest
-    needs: quality-gate
+    needs: publish
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
