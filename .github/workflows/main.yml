@@ -3,6 +3,8 @@ name: Deploy Portfolio
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 env:
@@ -106,10 +108,23 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
+  secrets-scan:
+    name: Secrets Gate (Gitleaks)
+    runs-on: ubuntu-latest
+    needs: scan
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   publish:
     name: Publicar imagen (Docker Hub)
     runs-on: ubuntu-latest
-    needs: [build, quality-gate]
+    needs: [build, quality-gate, secrets-scan]
     steps:
       - uses: actions/checkout@v4
       
