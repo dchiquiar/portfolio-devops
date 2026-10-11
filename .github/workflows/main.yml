@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+env:
+  APP_NAME: portfolio-devops
+  
 permissions:
   contents: read
   pages: write
@@ -21,18 +24,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Imprimir contexto
+        run: |
+          echo "SHA: ${{ github.sha }}"
+          echo "Rama: ${{ github.ref_name }}"
+          echo "Evento: ${{ github.event_name }}"
+          echo "Actor: ${{ github.actor }}"
+          echo "Runner: ${{ runner.os }}"
+          echo "App: $APP_NAME"
+      
       - name: Build imagen para escaneo
         uses: docker/build-push-action@v5
         with:
           context: .
           push: false
           load: true
-          tags: portfolio-devops:${{ github.sha }}
+          tags: ${{ env.APP_NAME }}:${{ github.sha }}
 
       - name: Escaneo Trivy
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: portfolio-devops:${{ github.sha }}
+          image-ref: ${{ env.APP_NAME }}:${{ github.sha }}
           format: table
           exit-code: '1'
           ignore-unfixed: true
@@ -72,8 +84,8 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/portfolio-devops:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/portfolio-devops:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.APP_NAME }}:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.APP_NAME }}:${{ github.sha }}
 
   deploy:
     name: Deploy a GitHub Pages
