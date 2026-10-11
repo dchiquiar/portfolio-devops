@@ -18,9 +18,31 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.tag.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generar tag
+        id: tag
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          echo "value=$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "Tag generado: $SHORT_SHA"
+
+      - name: Build imagen (sin push)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: ${{ env.APP_NAME }}:${{ steps.tag.outputs.value }}
   scan:
     name: Security Gate (Trivy)
     runs-on: ubuntu-latest
+    needs: build
     steps:
       - uses: actions/checkout@v4
 
@@ -39,12 +61,12 @@ jobs:
           context: .
           push: false
           load: true
-          tags: ${{ env.APP_NAME }}:${{ github.sha }}
+          tags: ${{ env.APP_NAME }}:${{ needs.build.outputs.image-tag }}
 
       - name: Escaneo Trivy
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.APP_NAME }}:${{ github.sha }}
+          image-ref: ${{ env.APP_NAME }}:${{ needs.build.outputs.image-tag }}
           format: table
           exit-code: '1'
           ignore-unfixed: true
@@ -68,7 +90,7 @@ jobs:
   publish:
     name: Publicar imagen (Docker Hub)
     runs-on: ubuntu-latest
-    needs: quality-gate
+    needs: [build, quality-gate]
     steps:
       - uses: actions/checkout@v4
 
@@ -85,7 +107,7 @@ jobs:
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.APP_NAME }}:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.APP_NAME }}:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.APP_NAME }}:${{ needs.build.outputs.image-tag }}
 
   deploy:
     name: Deploy a GitHub Pages
