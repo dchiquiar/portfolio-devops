@@ -1,1 +1,1 @@
-const awsKey = "AKIAIOSF••••••••••••";
+const awsKey = "AKIAIOSFODNN7ABCDEFG";
